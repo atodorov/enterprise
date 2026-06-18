@@ -18,10 +18,16 @@ ${LOGIN_URL}            ${SERVER}/accounts/login/
 ${PWD_RESET_URL}        ${SERVER}/accounts/passwordreset/
 ${PWD_RESET_DONE}       ${SERVER}/accounts/passwordreset/done/
 ${PWD_RESET_COMPLETE}   ${SERVER}/accounts/passwordreset/complete/
+${CONFIRM_URL}          EMPTY
 
 
 *** Test Cases ***
 Regular User Can Reset Their Password
+    # If CONFIRM_URL is provided, skip the first part and just perform the reset
+    Run Keyword If    '${CONFIRM_URL}' != 'EMPTY'    Reset Password With URL    ${CONFIRM_URL}
+    Run Keyword If    '${CONFIRM_URL}' == 'EMPTY'    Request Password Reset
+
+Request Password Reset
     Open Browser    ${PWD_RESET_URL}    ${BROWSER}
     Maximize Browser Window
     Set Selenium Speed    ${DELAY}
@@ -34,18 +40,13 @@ Regular User Can Reset Their Password
     Location Should Be    ${PWD_RESET_DONE}
     Page Should Contain   Password reset email was sent!
     Sleep       10s     Waiting for email to be sent
+    [Teardown]    Close Browser
 
-    ${ls}=     Run Process     docker  exec    web     ls       -l      /Kiwi/uploads/email-messages/
-    Log    ${ls.stdout}
-
-    ${confirmUrl}=     Run Process     docker  exec    web     grep     -hR     passwordreset/confirm   /Kiwi/uploads/email-messages/
-    Log    ${confirmUrl.stdout}
-
-    # replace the domain b/c it doesn't have ports specification
-    ${containerUrl}=      Replace String  ${confirmUrl.stdout}    https://testing.example.bg      ${SERVER}
-    Log    ${containerUrl}
-
-    Go To                 ${containerUrl}
+Reset Password With URL
+    [Arguments]    ${url}
+    Open Browser    ${url}    ${BROWSER}
+    Maximize Browser Window
+    Set Selenium Speed    ${DELAY}
     Title Should Be       Kiwi TCMS - Enter new password
 
     Input Text    id_new_password1    Updated-Passw0rd!
@@ -54,7 +55,6 @@ Regular User Can Reset Their Password
 
     Location Should Be  ${PWD_RESET_COMPLETE}
     Title Should Be     Kiwi TCMS - Password reset complete
-
 
     # now try logging in with the new password
     Go To               ${LOGIN_URL}
@@ -67,5 +67,4 @@ Regular User Can Reset Their Password
 
     Location Should Be    ${DASHBOARD_URL}
     Title Should Be       Kiwi TCMS - Dashboard
-
     [Teardown]    Close Browser
